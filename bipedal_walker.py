@@ -626,19 +626,37 @@ class BipedalWalker(gym.Env, EzPickle):
         )  # keep head straight, other than that and falling, any behavior is unpunished
 
         # Punish robot for having two legs on the ground at the same time
+        two_legs_on_ground = 0.0
         if self.legs[1].ground_contact and self.legs[3].ground_contact:
-            shaping -= 1.0
+            two_legs_on_ground -= 1.0
 
-        # Reward robot for joint speed
-        shaping += 0.1 * (
-            abs(state[5]) + abs(state[7]) + abs(state[10]) + abs(state[12])
-        )
 
         # Punish robot for large hip joint angles
-        hip1_deviation = abs(state[4])
-        hip2_deviation = abs(state[9])
-        if abs(hip1_deviation) > 0.5 or abs(hip2_deviation) > 0.5:
-            shaping -= 0.5 * (abs(hip1_deviation) + abs(hip2_deviation))
+        hips_straight = 0.0
+        # hip1_deviation = abs(state[4])
+        # hip2_deviation = abs(state[9])
+        # if abs(hip1_deviation) > 0.5 or abs(hip2_deviation) > 0.5:
+        #     hips_straight -= 0.05 * (abs(hip1_deviation) + abs(hip2_deviation))
+
+        # Reward robot for alternating foot steps
+        # If left leg was down last, and right leg is down now with left leg up, reward
+
+        if not hasattr(self, "last_leg_down"):
+            self.last_leg_down = None
+
+        leg_switch = 0.0
+        if self.last_leg_down == 8 and state[13] == 1.0 and state[8] == 0.0:
+            leg_switch += 1.0
+        if self.last_leg_down == 13 and state[8] == 1.0 and state[13] == 0.0:
+            leg_switch += 1.0
+
+
+        if state[8] == 1.0 and state[13] == 0.0:
+            self.last_leg_down = 8
+        if state[8] == 0.0 and state[13] == 1.0:
+            self.last_leg_down = 13
+        
+        custom_rewards = two_legs_on_ground + hips_straight + leg_switch
 
         reward = 0
         if self.prev_shaping is not None:
@@ -648,6 +666,8 @@ class BipedalWalker(gym.Env, EzPickle):
         for a in action:
             reward -= 0.00035 * MOTORS_TORQUE * np.clip(np.abs(a), 0, 1)
             # normalized to about -50.0 using heuristic, more optimal agent should spend less
+
+        reward += custom_rewards
 
         terminated = False
         if self.game_over or pos[0] < 0:

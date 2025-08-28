@@ -3,7 +3,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 import bipedal_walker
 # Create a vectorized environment
-env = make_vec_env(bipedal_walker.BipedalWalker, n_envs=1, env_kwargs={'render_mode': 'human'})
+env = make_vec_env(bipedal_walker.BipedalWalker, n_envs=1, env_kwargs={'render_mode': 'human', 'hardcore': True})
 
 # Load the trained PPO agent
 model = PPO.load("bipedal_walker_ppo", env=env, device='cpu')
